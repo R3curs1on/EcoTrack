@@ -31,3 +31,24 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Improve input field visibility */
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  color: #1f2937 !important; /* darker text color */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* darker placeholder text */
+  opacity: 1;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+  color: #111827 !important; /* even darker on focus */
+}

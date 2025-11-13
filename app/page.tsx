@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 interface Species {
   name: string
@@ -9,6 +9,8 @@ interface Species {
   isFauna: boolean
   biomass: number
   initialPopulation: number
+  births: number
+  deaths: number
 }
 
 interface FoodChainRelation {
@@ -16,10 +18,18 @@ interface FoodChainRelation {
   prey: string
 }
 
+interface SimulationResult {
+  species: string
+  impact: number
+  reason: string
+}
+
 export default function Home() {
   const [species, setSpecies] = useState<Species[]>([])
   const [foodChain, setFoodChain] = useState<FoodChainRelation[]>([])
   const [relocationQueue, setRelocationQueue] = useState<string[]>([])
+  const [simulationResults, setSimulationResults] = useState<SimulationResult[]>([])
+  const [showSimulation, setShowSimulation] = useState(false)
   
   // Form states
   const [speciesName, setSpeciesName] = useState('')
@@ -30,8 +40,10 @@ export default function Home() {
   const [prey, setPrey] = useState('')
   const [deathSpecies, setDeathSpecies] = useState('')
   const [deathCount, setDeathCount] = useState(0)
-  const [recoverySpecies, setRecoverySpecies] = useState('')
-  const [recoveryAmount, setRecoveryAmount] = useState(0)
+  const [birthSpecies, setBirthSpecies] = useState('')
+  const [birthCount, setBirthCount] = useState(0)
+  const [simulationSpecies, setSimulationSpecies] = useState('')
+  const [simulationDeaths, setSimulationDeaths] = useState(0)
 
   const addSpecies = (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +55,9 @@ export default function Home() {
       population: isFauna ? measure : 0,
       isFauna,
       biomass: isFauna ? 0 : measure,
-      initialPopulation: isFauna ? measure : 0
+      initialPopulation: isFauna ? measure : 0,
+      births: 0,
+      deaths: 0
     }
 
     setSpecies(prev => [...prev, newSpecies])
@@ -72,35 +86,126 @@ export default function Home() {
     setSpecies(prev => prev.map(s => {
       if (s.name === deathSpecies) {
         const newPopulation = Math.max(0, s.population - deathCount)
-        return { ...s, population: newPopulation }
+        return { ...s, population: newPopulation, deaths: s.deaths + deathCount }
       }
       return s
     }))
+
+    // Apply cascade effects
+    applyCascadeEffects(deathSpecies, deathCount)
 
     setDeathSpecies('')
     setDeathCount(0)
   }
 
-  const simulateRecovery = (e: React.FormEvent) => {
+  const recordBirth = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!recoverySpecies.trim()) return
+    if (!birthSpecies.trim()) return
 
     setSpecies(prev => prev.map(s => {
-      if (s.name === recoverySpecies) {
-        const newPopulation = s.population + recoveryAmount
+      if (s.name === birthSpecies) {
+        const newPopulation = s.population + birthCount
         if (newPopulation >= 50 && relocationQueue.includes(s.name)) {
           setRelocationQueue(queue => queue.filter(name => name !== s.name))
         }
-        return { ...s, population: newPopulation }
+        return { ...s, population: newPopulation, births: s.births + birthCount }
       }
       return s
     }))
 
-    setRecoverySpecies('')
-    setRecoveryAmount(0)
+    setBirthSpecies('')
+    setBirthCount(0)
+  }
+
+  // Function to apply cascade effects when a species dies
+  const applyCascadeEffects = (deadSpecies: string, deathCount: number) => {
+    // Find all species that depend on the dead species (predators)
+    const affectedPredators = foodChain
+      .filter(rel => rel.prey === deadSpecies)
+      .map(rel => rel.predator)
+    
+    // Find all species that the dead species preyed upon (prey)
+    const affectedPrey = foodChain
+      .filter(rel => rel.predator === deadSpecies)
+      .map(rel => rel.prey)
+
+    setSpecies(prev => prev.map(s => {
+      // Predators suffer when their prey dies (lose 20% of deaths)
+      if (affectedPredators.includes(s.name)) {
+        const impact = Math.floor(deathCount * 0.2)
+        const newPopulation = Math.max(0, s.population - impact)
+        return { ...s, population: newPopulation }
+      }
+      // Prey populations may increase when predator dies (gain 10% of deaths)
+      if (affectedPrey.includes(s.name)) {
+        const impact = Math.floor(deathCount * 0.1)
+        const newPopulation = s.population + impact
+        return { ...s, population: newPopulation }
+      }
+      return s
+    }))
+  }
+
+  // Simulate "What if?" scenario
+  const simulateWhatIf = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!simulationSpecies.trim()) return
+
+    const results: SimulationResult[] = []
+    
+    // Find affected predators
+    const affectedPredators = foodChain
+      .filter(rel => rel.prey === simulationSpecies)
+      .map(rel => rel.predator)
+    
+    // Find affected prey
+    const affectedPrey = foodChain
+      .filter(rel => rel.predator === simulationSpecies)
+      .map(rel => rel.prey)
+
+    affectedPredators.forEach(predator => {
+      const impact = Math.floor(simulationDeaths * 0.2)
+      results.push({
+        species: predator,
+        impact: -impact,
+        reason: `Predator loses food source (${simulationSpecies})`
+      })
+    })
+
+    affectedPrey.forEach(prey => {
+      const impact = Math.floor(simulationDeaths * 0.1)
+      results.push({
+        species: prey,
+        impact: impact,
+        reason: `Prey population increases due to reduced predation`
+      })
+    })
+
+    setSimulationResults(results)
+    setShowSimulation(true)
   }
 
   const sortedSpecies = [...species].sort((a, b) => a.riskLevel - b.riskLevel)
+
+  // Build dependency graph data structure
+  const dependencyGraph = useMemo(() => {
+    const graph: { [key: string]: { predators: string[], prey: string[] } } = {}
+    
+    species.forEach(s => {
+      graph[s.name] = { predators: [], prey: [] }
+    })
+    
+    foodChain.forEach(relation => {
+      if (graph[relation.predator]) {
+        graph[relation.predator].prey.push(relation.prey)
+      }
+      if (graph[relation.prey]) {
+        graph[relation.prey].predators.push(relation.predator)
+      }
+    })
+    
+    return graph
+  }, [species, foodChain])
 
   const getRiskLevelColor = (risk: number) => {
     if (risk <= 1) return 'text-red-600'
@@ -286,13 +391,13 @@ export default function Home() {
 
           {/* Simulate Recovery */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-green-700 mb-4">🌱 Simulate Species Recovery</h2>
-            <form onSubmit={simulateRecovery} className="space-y-4">
+            <h2 className="text-2xl font-bold text-green-700 mb-4">👶 Record Species Birth</h2>
+            <form onSubmit={recordBirth} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Species Name</label>
                 <select
-                  value={recoverySpecies}
-                  onChange={(e) => setRecoverySpecies(e.target.value)}
+                  value={birthSpecies}
+                  onChange={(e) => setBirthSpecies(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   required
                 >
@@ -303,11 +408,11 @@ export default function Home() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recovery Amount</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Number of Births</label>
                 <input
                   type="number"
-                  value={recoveryAmount}
-                  onChange={(e) => setRecoveryAmount(Number(e.target.value))}
+                  value={birthCount}
+                  onChange={(e) => setBirthCount(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   min="0"
                   required
@@ -317,10 +422,74 @@ export default function Home() {
                 type="submit"
                 className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors font-medium"
               >
-                Simulate Recovery
+                Record Birth
               </button>
             </form>
           </div>
+        </div>
+
+        {/* What If Simulation */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold text-purple-700 mb-4">🔮 What If? Simulation</h2>
+          <p className="text-gray-600 mb-4">Simulate the ecosystem impact if a species population decreases</p>
+          <form onSubmit={simulateWhatIf} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Species</label>
+              <select
+                value={simulationSpecies}
+                onChange={(e) => setSimulationSpecies(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required
+              >
+                <option value="">Select species</option>
+                {species.map((s, idx) => (
+                  <option key={idx} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Simulated Deaths</label>
+              <input
+                type="number"
+                value={simulationDeaths}
+                onChange={(e) => setSimulationDeaths(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                min="0"
+                required
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors font-medium"
+              >
+                Run Simulation
+              </button>
+            </div>
+          </form>
+
+          {showSimulation && simulationResults.length > 0 && (
+            <div className="mt-6 p-4 bg-white rounded-lg border-2 border-purple-200">
+              <h3 className="font-bold text-lg text-purple-800 mb-3">Simulation Results:</h3>
+              <div className="space-y-2">
+                {simulationResults.map((result, idx) => (
+                  <div key={idx} className={`p-3 rounded-lg ${result.impact < 0 ? 'bg-red-50 border-l-4 border-red-500' : 'bg-green-50 border-l-4 border-green-500'}`}>
+                    <div className="font-semibold">{result.species}</div>
+                    <div className={`text-sm ${result.impact < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      Impact: {result.impact > 0 ? '+' : ''}{result.impact} population
+                    </div>
+                    <div className="text-xs text-gray-600">{result.reason}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showSimulation && simulationResults.length === 0 && (
+            <div className="mt-6 p-4 bg-white rounded-lg border-2 border-gray-200">
+              <p className="text-gray-600 text-center">No connected species found. This species has no predator-prey relationships.</p>
+            </div>
+          )}
         </div>
 
         {/* Species Display */}
@@ -362,6 +531,14 @@ export default function Home() {
                             {change >= 0 ? '+' : ''}{change}
                           </span>
                         </div>
+                        <div>
+                          <span className="font-medium">Births:</span>
+                          <span className="ml-2 text-green-600 font-bold">+{s.births}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Deaths:</span>
+                          <span className="ml-2 text-red-600 font-bold">-{s.deaths}</span>
+                        </div>
                       </div>
                     </div>
                   )
@@ -386,6 +563,51 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Dependency Graph */}
+        {foodChain.length > 0 && (
+          <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-blue-700 mb-4">🕸️ Species Dependency Graph</h2>
+            <p className="text-gray-600 mb-4">Visual representation of predator-prey relationships</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(dependencyGraph).map(([speciesName, connections]) => {
+                if (connections.predators.length === 0 && connections.prey.length === 0) return null
+                return (
+                  <div key={speciesName} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                    <h3 className="font-bold text-lg text-blue-800 mb-2">{speciesName}</h3>
+                    {connections.predators.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-xs font-semibold text-red-600 mb-1">Eaten by (Predators):</div>
+                        <div className="space-y-1">
+                          {connections.predators.map((pred, idx) => (
+                            <div key={idx} className="text-sm bg-red-50 px-2 py-1 rounded border-l-2 border-red-400">
+                              ↑ {pred}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {connections.prey.length > 0 && (
+                      <div>
+                        <div className="text-xs font-semibold text-green-600 mb-1">Feeds on (Prey):</div>
+                        <div className="space-y-1">
+                          {connections.prey.map((preyItem, idx) => (
+                            <div key={idx} className="text-sm bg-green-50 px-2 py-1 rounded border-l-2 border-green-400">
+                              ↓ {preyItem}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {Object.values(dependencyGraph).every(conn => conn.predators.length === 0 && conn.prey.length === 0) && (
+              <p className="text-gray-500 text-center py-4">Add food chain relationships to see the dependency graph</p>
+            )}
+          </div>
+        )}
 
         <footer className="mt-8 text-center text-gray-600 text-sm">
           <p>EcoTrack uses advanced data structures (BST, Graph, Queue) to monitor biodiversity.</p>
