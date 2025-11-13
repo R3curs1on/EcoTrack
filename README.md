@@ -159,14 +159,3 @@ Population: 50
 - **CRITICAL**: Fauna population < 50
 - **HIGHLY ENDANGERED**: Risk Level 1
 
-## 📄 License
-
-This project is part of an educational biodiversity tracking system.
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to submit issues or pull requests.
-
-## 📞 Support
-
-For questions or issues, please open an issue on the GitHub repository.
