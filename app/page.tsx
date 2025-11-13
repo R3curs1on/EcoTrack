@@ -185,25 +185,6 @@ export default function Home() {
     setShowSimulation(true)
   }
 
-  const simulateRecovery = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!recoverySpecies.trim()) return
-
-    setSpecies(prev => prev.map(s => {
-      if (s.name === recoverySpecies) {
-        const newPopulation = s.population + recoveryAmount
-        if (newPopulation >= 50 && relocationQueue.includes(s.name)) {
-          setRelocationQueue(queue => queue.filter(name => name !== s.name))
-        }
-        return { ...s, population: newPopulation }
-      }
-      return s
-    }))
-
-    setRecoverySpecies('')
-    setRecoveryAmount(0)
-  }
-
   const sortedSpecies = [...species].sort((a, b) => a.riskLevel - b.riskLevel)
 
   // Build dependency graph data structure
