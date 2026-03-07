@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import type cytoscape from 'cytoscape'
 import { useEcoTrackStore } from '@/lib/store'
 import { CHART_COLORS } from '@/lib/constants'
-import { Play, Pause, RotateCcw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { Play, RotateCcw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const CytoscapeComponent = dynamic(() => import('react-cytoscapejs'), { 
@@ -32,7 +32,8 @@ export function FoodChainGraph() {
     affectedNodes: new Set(),
     impactType: new Map()
   })
-  const animationRef = useRef<number | null>(null)
+  const animationRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitializedRef = useRef(false)
 
   // Build graph elements
   const elements = useMemo(() => {
@@ -72,14 +73,22 @@ export function FoodChainGraph() {
     }
   }, [])
 
-  // Cytoscape stylesheet
+  // Cytoscape stylesheet - memoized without dependencies that change
   const stylesheet: cytoscape.Stylesheet[] = useMemo(() => [
     {
       selector: 'node',
       style: {
         'background-color': (ele: cytoscape.NodeSingular) => {
           const data = ele.data()
-          return getNodeColor(data.riskLevel, data.isFauna)
+          if (!data.isFauna) return CHART_COLORS.primary
+          switch (data.riskLevel) {
+            case 1: return CHART_COLORS.critical
+            case 2: return CHART_COLORS.endangered
+            case 3: return CHART_COLORS.vulnerable
+            case 4: return CHART_COLORS.near
+            case 5: return CHART_COLORS.least
+            default: return CHART_COLORS.secondary
+          }
         },
         'label': 'data(label)',
         'color': '#3d4f42',
@@ -198,14 +207,14 @@ export function FoodChainGraph() {
         'opacity': 0.15
       }
     }
-  ], [getNodeColor])
+  ], [])
 
-  // Layout configuration
+  // Layout configuration - stable reference
   const layout = useMemo(() => ({
-    name: 'cose',
+    name: 'cose' as const,
     animate: true,
     animationDuration: 800,
-    animationEasing: 'ease-out',
+    animationEasing: 'ease-out' as const,
     refresh: 20,
     fit: true,
     padding: 50,
@@ -221,44 +230,48 @@ export function FoodChainGraph() {
     minTemp: 1.0
   }), [])
 
-  // Initialize cytoscape instance
+  // Handle node selection change - update highlighting without re-initializing cy
+  useEffect(() => {
+    const cy = cyRef.current
+    if (!cy || !isInitializedRef.current) return
+
+    cy.elements().removeClass('highlighted dimmed')
+    
+    if (selectedNode) {
+      const node = cy.getElementById(selectedNode)
+      if (node && node.length > 0) {
+        const neighborhood = node.neighborhood().add(node)
+        neighborhood.addClass('highlighted')
+        cy.elements().not(neighborhood).addClass('dimmed')
+      }
+    }
+  }, [selectedNode])
+
+  // Initialize cytoscape instance - only once
   const handleCy = useCallback((cy: cytoscape.Core) => {
+    if (isInitializedRef.current && cyRef.current === cy) return
+    
     cyRef.current = cy
+    isInitializedRef.current = true
+    
+    // Remove any existing listeners first
+    cy.removeAllListeners()
     
     // Node click handler
     cy.on('tap', 'node', (evt) => {
       const node = evt.target
       const nodeId = node.id()
       
-      // Clear previous highlighting
-      cy.elements().removeClass('highlighted dimmed')
-      
-      if (selectedNode === nodeId) {
-        setSelectedNode(null)
-      } else {
-        setSelectedNode(nodeId)
-        
-        // Highlight connected nodes and edges
-        const neighborhood = node.neighborhood().add(node)
-        neighborhood.addClass('highlighted')
-        cy.elements().not(neighborhood).addClass('dimmed')
-      }
+      setSelectedNode(prev => prev === nodeId ? null : nodeId)
     })
     
     // Background click to clear selection
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
-        cy.elements().removeClass('highlighted dimmed')
         setSelectedNode(null)
       }
     })
-    
-    // Node hover effects
-    cy.on('mouseover', 'node', (evt) => {
-      const node = evt.target
-      node.style('cursor', 'pointer')
-    })
-  }, [selectedNode])
+  }, [])
 
   // Run cascade simulation with animation
   const runCascadeSimulation = useCallback(() => {
@@ -269,8 +282,14 @@ export function FoodChainGraph() {
     
     if (!sourceNode || sourceNode.length === 0) return
     
+    // Clear any existing animation
+    if (animationRef.current) {
+      clearTimeout(animationRef.current)
+      animationRef.current = null
+    }
+    
     // Reset previous simulation
-    cy.elements().removeClass('simulation-source simulation-negative simulation-positive simulation-active dimmed')
+    cy.elements().removeClass('simulation-source simulation-negative simulation-positive simulation-active highlighted dimmed')
     
     setSimulation({
       isRunning: true,
@@ -295,7 +314,6 @@ export function FoodChainGraph() {
     
     // Animate edges first, then nodes
     let step = 0
-    const totalSteps = 3
     
     const animate = () => {
       step++
@@ -304,6 +322,7 @@ export function FoodChainGraph() {
         // Animate edges
         incomingEdges.addClass('simulation-active')
         outgoingEdges.addClass('simulation-active')
+        animationRef.current = setTimeout(animate, 600)
       } else if (step === 2) {
         // Animate predators (negative impact)
         predators.forEach((node: cytoscape.NodeSingular) => {
@@ -332,20 +351,18 @@ export function FoodChainGraph() {
           affectedNodes: newAffected,
           impactType: newImpactType
         }))
-      } else if (step >= totalSteps) {
-        return
+        // No more animation steps needed
       }
-      
-      animationRef.current = window.setTimeout(animate, 600)
     }
     
-    animationRef.current = window.setTimeout(animate, 100)
+    animationRef.current = setTimeout(animate, 100)
   }, [selectedNode])
 
   // Reset simulation
   const resetSimulation = useCallback(() => {
     if (animationRef.current) {
       clearTimeout(animationRef.current)
+      animationRef.current = null
     }
     
     if (cyRef.current) {
