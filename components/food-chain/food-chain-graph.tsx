@@ -550,7 +550,7 @@ export function FoodChainGraph() {
               </div>
             </div>
             {!simulation.isRunning && (
-              <p className="text-xs text-muted mt-3">Click "Simulate Impact" to see cascade effects</p>
+              <p className="text-xs text-muted mt-3">Click &quot;Simulate Impact&quot; to see cascade effects</p>
             )}
           </div>
         )}
