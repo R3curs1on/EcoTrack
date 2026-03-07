@@ -1,133 +1,129 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Trash2, ArrowDown, Link } from 'lucide-react'
+import { Trash2, ArrowRight, Link, Network } from 'lucide-react'
 import { useEcoTrackStore } from '@/lib/store'
 import { EmptyState } from '@/components/shared/empty-state'
-import { DependencyGraph } from '@/lib/types'
+import { FoodChainGraph } from './food-chain-graph'
 import { ANIMATION_DELAYS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 
 export function FoodChainVisualizer() {
   const { species, foodChain, removeFoodChainRelation } = useEcoTrackStore()
 
-  const dependencyGraph = useMemo<DependencyGraph>(() => {
-    const graph: DependencyGraph = {}
-    
-    species.forEach(s => {
-      graph[s.name] = { predators: [], prey: [] }
-    })
-    
+  // Group relationships by predator for better visualization
+  const groupedRelations = useMemo(() => {
+    const groups: Record<string, string[]> = {}
     foodChain.forEach(relation => {
-      if (graph[relation.predator]) {
-        graph[relation.predator].prey.push(relation.prey)
+      if (!groups[relation.predator]) {
+        groups[relation.predator] = []
       }
-      if (graph[relation.prey]) {
-        graph[relation.prey].predators.push(relation.predator)
-      }
+      groups[relation.predator].push(relation.prey)
     })
-    
-    return graph
-  }, [species, foodChain])
-
-  const connectedSpecies = Object.entries(dependencyGraph).filter(
-    ([, connections]) => connections.predators.length > 0 || connections.prey.length > 0
-  )
+    return groups
+  }, [foodChain])
 
   if (foodChain.length === 0) {
     return (
       <EmptyState
-        icon={<Link className="w-10 h-10 text-primary-muted" />}
+        icon={<Network className="w-10 h-10 text-primary-muted" />}
         title="No food chain relationships"
-        description="Add predator-prey relationships to visualize the ecosystem's food chain and dependencies."
+        description="Add predator-prey relationships to visualize the ecosystem's food web with interactive graphs."
       />
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Interactive Graph Visualization */}
+      {species.length > 0 && <FoodChainGraph />}
+
       {/* Relationships List */}
       <div className="card animate-slide-up">
-        <h3 className="text-lg font-semibold text-heading mb-4">
-          Relationships ({foodChain.length})
-        </h3>
-        <div className="space-y-2">
-          {foodChain.map((relation, index) => (
-            <div 
-              key={relation.id} 
-              className="flex items-center justify-between p-3 bg-background rounded-button group animate-fade-in"
-              style={{ animationDelay: `${index * ANIMATION_DELAYS.stagger}ms` }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-medium text-heading">{relation.predator}</span>
-                <ArrowDown className="w-4 h-4 text-muted rotate-[-90deg]" />
-                <span className="text-body">{relation.prey}</span>
-              </div>
-              <button
-                onClick={() => removeFoodChainRelation(relation.id)}
-                className="p-1.5 text-muted hover:text-risk-critical hover:bg-risk-critical/5 rounded transition-all opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Dependency Graph */}
-      {connectedSpecies.length > 0 && (
-        <div className="card animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <h3 className="text-lg font-semibold text-heading mb-4">
-            Dependency Graph
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {connectedSpecies.map(([speciesName, connections], index) => (
-              <div 
-                key={speciesName} 
-                className="p-4 bg-background rounded-card border border-border animate-fade-in"
-                style={{ animationDelay: `${index * ANIMATION_DELAYS.stagger}ms` }}
-              >
-                <h4 className="font-semibold text-heading mb-3">{speciesName}</h4>
-                
-                {connections.predators.length > 0 && (
-                  <div className="mb-3">
-                    <p className="text-xs font-medium text-risk-critical mb-2">
-                      Eaten by (Predators):
-                    </p>
-                    <div className="space-y-1">
-                      {connections.predators.map((pred) => (
-                        <div 
-                          key={pred} 
-                          className="text-sm px-2 py-1 bg-risk-critical/5 text-risk-critical rounded border-l-2 border-risk-critical"
-                        >
-                          {pred}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {connections.prey.length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-risk-least mb-2">
-                      Feeds on (Prey):
-                    </p>
-                    <div className="space-y-1">
-                      {connections.prey.map((preyItem) => (
-                        <div 
-                          key={preyItem} 
-                          className="text-sm px-2 py-1 bg-risk-least/5 text-risk-least rounded border-l-2 border-risk-least"
-                        >
-                          {preyItem}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+            <Link className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-heading">
+              Relationships ({foodChain.length})
+            </h3>
+            <p className="text-sm text-muted">Predator to prey connections</p>
           </div>
         </div>
-      )}
+        
+        <div className="space-y-4">
+          {Object.entries(groupedRelations).map(([predator, preyList], groupIndex) => {
+            const predatorSpecies = species.find(s => s.name === predator)
+            
+            return (
+              <div 
+                key={predator}
+                className="p-4 bg-background rounded-card border border-border animate-fade-in"
+                style={{ animationDelay: `${groupIndex * ANIMATION_DELAYS.stagger}ms` }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-semibold text-heading">{predator}</span>
+                  {predatorSpecies && (
+                    <span className={cn(
+                      'text-xs px-2 py-0.5 rounded-full',
+                      predatorSpecies.riskLevel === 1 && 'bg-risk-critical/10 text-risk-critical',
+                      predatorSpecies.riskLevel === 2 && 'bg-risk-endangered/10 text-risk-endangered',
+                      predatorSpecies.riskLevel === 3 && 'bg-risk-vulnerable/10 text-risk-vulnerable',
+                      predatorSpecies.riskLevel === 4 && 'bg-risk-near/10 text-risk-near',
+                      predatorSpecies.riskLevel === 5 && 'bg-risk-least/10 text-risk-least'
+                    )}>
+                      {predatorSpecies.isFauna ? 'Fauna' : 'Flora'}
+                    </span>
+                  )}
+                  <ArrowRight className="w-4 h-4 text-muted ml-auto" />
+                  <span className="text-sm text-muted">feeds on</span>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {preyList.map((prey) => {
+                    const relation = foodChain.find(
+                      r => r.predator === predator && r.prey === prey
+                    )
+                    const preySpecies = species.find(s => s.name === prey)
+                    
+                    return (
+                      <div
+                        key={prey}
+                        className="group flex items-center gap-2 px-3 py-2 bg-surface rounded-button border border-border hover:border-primary/30 transition-colors"
+                      >
+                        <span className="text-sm font-medium text-body">{prey}</span>
+                        {preySpecies && (
+                          <div 
+                            className={cn(
+                              'w-2 h-2 rounded-full',
+                              preySpecies.riskLevel === 1 && 'bg-risk-critical',
+                              preySpecies.riskLevel === 2 && 'bg-risk-endangered',
+                              preySpecies.riskLevel === 3 && 'bg-risk-vulnerable',
+                              preySpecies.riskLevel === 4 && 'bg-risk-near',
+                              preySpecies.riskLevel === 5 && 'bg-risk-least'
+                            )}
+                            title={`Risk Level: ${preySpecies.riskLevel}`}
+                          />
+                        )}
+                        {relation && (
+                          <button
+                            onClick={() => removeFoodChainRelation(relation.id)}
+                            className="p-1 text-muted hover:text-risk-critical hover:bg-risk-critical/5 rounded opacity-0 group-hover:opacity-100 transition-all ml-1"
+                            title="Remove relationship"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

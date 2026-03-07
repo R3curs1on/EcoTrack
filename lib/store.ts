@@ -6,6 +6,191 @@ import { Species, FoodChainRelation, SimulationResult, RiskLevel, TabId } from '
 import { generateId } from './utils'
 import { CASCADE_EFFECTS, CRITICAL_POPULATION_THRESHOLD, STORAGE_KEY } from './constants'
 
+// Demo data for initial load
+const DEMO_SPECIES: Species[] = [
+  {
+    id: 'demo-1',
+    name: 'Gray Wolf',
+    riskLevel: 2,
+    population: 320,
+    isFauna: true,
+    biomass: 45,
+    initialPopulation: 350,
+    births: 45,
+    deaths: 75,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 350, event: 'initial' },
+      { timestamp: new Date('2024-02-20'), population: 380, event: 'birth' },
+      { timestamp: new Date('2024-04-10'), population: 340, event: 'death' },
+      { timestamp: new Date('2024-06-05'), population: 320, event: 'cascade' },
+    ]
+  },
+  {
+    id: 'demo-2',
+    name: 'White-tailed Deer',
+    riskLevel: 5,
+    population: 2500,
+    isFauna: true,
+    biomass: 120,
+    initialPopulation: 2000,
+    births: 800,
+    deaths: 300,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 2000, event: 'initial' },
+      { timestamp: new Date('2024-03-10'), population: 2400, event: 'birth' },
+      { timestamp: new Date('2024-05-20'), population: 2500, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-3',
+    name: 'Red Fox',
+    riskLevel: 4,
+    population: 890,
+    isFauna: true,
+    biomass: 8,
+    initialPopulation: 800,
+    births: 150,
+    deaths: 60,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 800, event: 'initial' },
+      { timestamp: new Date('2024-04-15'), population: 890, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-4',
+    name: 'Eastern Cottontail',
+    riskLevel: 5,
+    population: 4200,
+    isFauna: true,
+    biomass: 1.5,
+    initialPopulation: 3500,
+    births: 1200,
+    deaths: 500,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 3500, event: 'initial' },
+      { timestamp: new Date('2024-02-28'), population: 4000, event: 'birth' },
+      { timestamp: new Date('2024-05-15'), population: 4200, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-5',
+    name: 'Bald Eagle',
+    riskLevel: 3,
+    population: 150,
+    isFauna: true,
+    biomass: 6,
+    initialPopulation: 120,
+    births: 40,
+    deaths: 10,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 120, event: 'initial' },
+      { timestamp: new Date('2024-06-01'), population: 150, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-6',
+    name: 'Rainbow Trout',
+    riskLevel: 4,
+    population: 8500,
+    isFauna: true,
+    biomass: 2,
+    initialPopulation: 8000,
+    births: 1500,
+    deaths: 1000,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 8000, event: 'initial' },
+      { timestamp: new Date('2024-04-01'), population: 8500, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-7',
+    name: 'Oak Tree',
+    riskLevel: 5,
+    population: 15000,
+    isFauna: false,
+    biomass: 500,
+    initialPopulation: 14500,
+    births: 600,
+    deaths: 100,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 14500, event: 'initial' },
+      { timestamp: new Date('2024-05-01'), population: 15000, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-8',
+    name: 'Wild Grass',
+    riskLevel: 5,
+    population: 50000,
+    isFauna: false,
+    biomass: 0.5,
+    initialPopulation: 45000,
+    births: 8000,
+    deaths: 3000,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 45000, event: 'initial' },
+      { timestamp: new Date('2024-03-15'), population: 50000, event: 'birth' },
+    ]
+  },
+  {
+    id: 'demo-9',
+    name: 'Mountain Lion',
+    riskLevel: 3,
+    population: 85,
+    isFauna: true,
+    biomass: 60,
+    initialPopulation: 100,
+    births: 15,
+    deaths: 30,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 100, event: 'initial' },
+      { timestamp: new Date('2024-03-20'), population: 90, event: 'death' },
+      { timestamp: new Date('2024-05-10'), population: 85, event: 'death' },
+    ]
+  },
+  {
+    id: 'demo-10',
+    name: 'American Black Bear',
+    riskLevel: 4,
+    population: 280,
+    isFauna: true,
+    biomass: 150,
+    initialPopulation: 250,
+    births: 50,
+    deaths: 20,
+    createdAt: new Date('2024-01-15'),
+    populationHistory: [
+      { timestamp: new Date('2024-01-15'), population: 250, event: 'initial' },
+      { timestamp: new Date('2024-04-30'), population: 280, event: 'birth' },
+    ]
+  }
+]
+
+const DEMO_FOOD_CHAIN: FoodChainRelation[] = [
+  { id: 'fc-1', predator: 'Gray Wolf', prey: 'White-tailed Deer', createdAt: new Date('2024-01-20') },
+  { id: 'fc-2', predator: 'Gray Wolf', prey: 'Eastern Cottontail', createdAt: new Date('2024-01-20') },
+  { id: 'fc-3', predator: 'Mountain Lion', prey: 'White-tailed Deer', createdAt: new Date('2024-01-20') },
+  { id: 'fc-4', predator: 'Mountain Lion', prey: 'Eastern Cottontail', createdAt: new Date('2024-01-20') },
+  { id: 'fc-5', predator: 'Red Fox', prey: 'Eastern Cottontail', createdAt: new Date('2024-01-20') },
+  { id: 'fc-6', predator: 'Red Fox', prey: 'Rainbow Trout', createdAt: new Date('2024-01-20') },
+  { id: 'fc-7', predator: 'Bald Eagle', prey: 'Rainbow Trout', createdAt: new Date('2024-01-20') },
+  { id: 'fc-8', predator: 'Bald Eagle', prey: 'Eastern Cottontail', createdAt: new Date('2024-01-20') },
+  { id: 'fc-9', predator: 'American Black Bear', prey: 'Rainbow Trout', createdAt: new Date('2024-01-20') },
+  { id: 'fc-10', predator: 'American Black Bear', prey: 'White-tailed Deer', createdAt: new Date('2024-01-20') },
+  { id: 'fc-11', predator: 'White-tailed Deer', prey: 'Wild Grass', createdAt: new Date('2024-01-20') },
+  { id: 'fc-12', predator: 'White-tailed Deer', prey: 'Oak Tree', createdAt: new Date('2024-01-20') },
+  { id: 'fc-13', predator: 'Eastern Cottontail', prey: 'Wild Grass', createdAt: new Date('2024-01-20') },
+]
+
 interface EcoTrackState {
   // Data
   species: Species[]
@@ -42,14 +227,15 @@ interface EcoTrackState {
   exportData: () => string
   importData: (jsonString: string) => boolean
   clearAllData: () => void
+  loadDemoData: () => void
 }
 
 export const useEcoTrackStore = create<EcoTrackState>()(
   persist(
     (set, get) => ({
-      // Initial State
-      species: [],
-      foodChain: [],
+      // Initial State - with demo data
+      species: DEMO_SPECIES,
+      foodChain: DEMO_FOOD_CHAIN,
       relocationQueue: [],
       simulationResults: [],
       activeTab: 'dashboard',
@@ -300,15 +486,24 @@ export const useEcoTrackStore = create<EcoTrackState>()(
         }
       },
       
-      clearAllData: () =>
-        set({
-          species: [],
-          foodChain: [],
-          relocationQueue: [],
-          simulationResults: [],
-          showSimulationResults: false,
-        }),
-    }),
+clearAllData: () =>
+  set({
+  species: [],
+  foodChain: [],
+  relocationQueue: [],
+  simulationResults: [],
+  showSimulationResults: false,
+  }),
+
+  loadDemoData: () =>
+  set({
+  species: DEMO_SPECIES,
+  foodChain: DEMO_FOOD_CHAIN,
+  relocationQueue: [],
+  simulationResults: [],
+  showSimulationResults: false,
+  }),
+  }),
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),

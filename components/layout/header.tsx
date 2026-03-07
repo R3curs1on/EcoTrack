@@ -1,11 +1,11 @@
 'use client'
 
-import { Leaf, Download, Upload, Trash2 } from 'lucide-react'
+import { Leaf, Download, Upload, Trash2, RefreshCw } from 'lucide-react'
 import { useEcoTrackStore } from '@/lib/store'
 import { useState, useRef } from 'react'
 
 export function Header() {
-  const { exportData, importData, clearAllData, species } = useEcoTrackStore()
+  const { exportData, importData, clearAllData, loadDemoData, species } = useEcoTrackStore()
   const [showActions, setShowActions] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -112,6 +112,16 @@ export function Header() {
                       />
                     </label>
                     <div className="my-1 border-t border-border" />
+                    <button
+                      onClick={() => {
+                        loadDemoData()
+                        setShowActions(false)
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-primary hover:bg-primary-bg rounded-button transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Load Demo Data
+                    </button>
                     <button
                       onClick={handleClear}
                       className="w-full flex items-center gap-3 px-3 py-2 text-sm text-risk-critical hover:bg-risk-critical/5 rounded-button transition-colors"
