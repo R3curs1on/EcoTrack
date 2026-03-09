@@ -486,23 +486,23 @@ export const useEcoTrackStore = create<EcoTrackState>()(
         }
       },
       
-clearAllData: () =>
-  set({
-  species: [],
-  foodChain: [],
-  relocationQueue: [],
-  simulationResults: [],
-  showSimulationResults: false,
-  }),
+      clearAllData: () =>
+        set({
+          species: [],
+          foodChain: [],
+          relocationQueue: [],
+          simulationResults: [],
+          showSimulationResults: false,
+        }),
 
-  loadDemoData: () =>
-  set({
-  species: DEMO_SPECIES,
-  foodChain: DEMO_FOOD_CHAIN,
-  relocationQueue: [],
-  simulationResults: [],
-  showSimulationResults: false,
-  }),
+      loadDemoData: () =>
+        set({
+          species: DEMO_SPECIES,
+          foodChain: DEMO_FOOD_CHAIN,
+          relocationQueue: [],
+          simulationResults: [],
+          showSimulationResults: false,
+        }),
   }),
     {
       name: STORAGE_KEY,
