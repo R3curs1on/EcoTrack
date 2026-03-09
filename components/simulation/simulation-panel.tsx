@@ -61,8 +61,8 @@ export function SimulationPanel() {
         </button>
       </div>
 
-      {/* Visual Graph Simulation */}
-      {showGraphSimulation && foodChain.length > 0 && (
+      {/* Visual Graph Simulation - TEMPORARILY DISABLED DUE TO CRASHING */}
+      {/* {showGraphSimulation && foodChain.length > 0 && (
         <div className="animate-fade-in">
           <FoodChainGraph />
         </div>
@@ -76,7 +76,7 @@ export function SimulationPanel() {
             description="Add predator-prey relationships in the Food Chain tab to visualize cascade simulations."
           />
         </div>
-      )}
+      )} */
 
       {/* Numeric Simulation Form */}
       {!showGraphSimulation && (

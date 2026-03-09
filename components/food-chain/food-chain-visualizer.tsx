@@ -35,8 +35,8 @@ export function FoodChainVisualizer() {
 
   return (
     <div className="space-y-6">
-      {/* Interactive Graph Visualization */}
-      {species.length > 0 && <FoodChainGraph />}
+      {/* Interactive Graph Visualization - TEMPORARILY DISABLED DUE TO CRASHING */}
+      {/* {species.length > 0 && <FoodChainGraph />} */}
 
       {/* Relationships List */}
       <div className="card animate-slide-up">
