@@ -14,7 +14,7 @@ const CytoscapeComponent = dynamic(() => import('react-cytoscapejs'), {
     <div className="w-full h-[500px] bg-background rounded-card flex items-center justify-center">
       <div className="animate-pulse text-muted">Loading graph...</div>
     </div>
-  )
+  ),
 })
 
 interface SimulationState {
@@ -248,14 +248,19 @@ export function FoodChainGraph() {
   }, [selectedNode])
 
   // Initialize cytoscape instance - only once
-  const handleCy = useCallback((cy: cytoscape.Core) => {
+  const handleCy = useCallback((cy: cytoscape.Core | null) => {
+    if (!cy) return
     if (isInitializedRef.current && cyRef.current === cy) return
     
     cyRef.current = cy
     isInitializedRef.current = true
     
     // Remove any existing listeners first
-    cy.removeAllListeners()
+    try {
+      cy.removeAllListeners()
+    } catch (e) {
+      // Ignore if listeners don't exist
+    }
     
     // Node click handler
     cy.on('tap', 'node', (evt) => {
